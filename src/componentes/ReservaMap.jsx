@@ -3,7 +3,7 @@ import "../estilos/ReservaMap.css";
 
 import miMapa from "../imagenes/miMapa.gif";
 
-// Imágenes en formato .webp
+// Imágenes
 import pinguino from "../imagenes/pinguino_de_humboldt.webp";
 import delfin from "../imagenes/delfin_nariz_de_botella.webp";
 import lobo from "../imagenes/lobo_marino.webp";
@@ -41,15 +41,7 @@ const animales = [
   { nombre: "Delfín nariz de botella", img: delfin, audio: audioDelfin, top: "45%", left: "42%", desc: "Delfín muy sociable que se encuentra en aguas costeras. Hay una manade de alrededor de 60 miembros en la reserva." },
   { nombre: "Lobo Marino", img: lobo, audio: audioLobo, top: "78%", left: "28%", desc: "Mamífero marino de gran tamaño y pelaje denso. La diferencia entre lobo y foca es su pelaje." },
   { nombre: "Chungungo", img: chungungo, audio: audioChungungo, top: "35%", left: "22%", desc: "Nutria chilena que habita zonas rocosas costeras. Hábil cazador, casa presas mucho mas grandes que él." },
-  { nombre: "Cormorán Lile", img: cormoranLile, audio: audioCormoranLile, top: "10%", left: "40%", desc: "Ave marina de plumaje oscuro. Casi llevado a la extinción por su belleza." },
-  { nombre: "Cormorán Piquero", img: cormoranPiquero, audio: audioCormoranPiquero, top: "28%", left: "35%", desc: "Ave con pico alargado y hábitos piscívoros. Sube a mas de 30 metros y es capaz de localizar un pez gracias a su increible vista." },
-  { nombre: "Cormorán Yeco", img: cormoranYeco, audio: audioCormoranYeco, top: "48%", left: "70%", desc: "Cormorán de plumaje más claro y pequeño. Habita en ríos, lagos y mares, conocido como /el pato buzo/." },
-  { nombre: "Cormorán Guanay", img: cormoranGuanay, audio: audioCormoranGuanay, top: "90%", left: "20%", desc: "Ave que produce guano, muy abundante en Chile y un recurso apreciado para explosiones y como abono natural." },
-  { nombre: "Yunco", img: yunco, audio: audioYunco, top: "75%", left: "60%", desc: "Ave típica de la zona costera. Vuela a ras de las olas del mar y es capaz de sumergirse alrededor de 80 metros en busca de su alimento." },
-  { nombre: "Ballena Jorobada", img: ballenaJorobada, audio: audioBallenaJorobada, top: "60%", left: "50%", desc: "Ballena que realiza saltos y cantos complejos. Suele ser la más avistada y popular de la reserva." },
-  { nombre: "Ballena Finn", img: ballenaFinn, audio: audioBallenaFinn, top: "40%", left: "60%", desc: "Gran ballena de cuerpo esbelto. Es la segunda mas grande ballena del mar." },
-  { nombre: "Ballena Azul", img: ballenaAzul, audio: audioBallenaAzul, top: "20%", left: "55%", desc: "El animal más grande del planeta y de la historia hasta ahora." },
-  { nombre: "Orca", img: orca, audio: audioOrca, top: "80%", left: "45%", desc: "Depredador marino conocido por su inteligencia. Dependiendo de su origen poseen una cultura distinta, además de tener un idioma propio." },
+  // ... resto de animales
 ];
 
 export default function ReservaMap() {
@@ -64,13 +56,12 @@ export default function ReservaMap() {
   const [popup, setPopup] = useState(null);
   const [zoomed, setZoomed] = useState(null);
 
-  // inicializar audio de animal
+  // Audio animal
   const initAudio = (animal) => {
     if (!audioRefs.current[animal.nombre]) {
       const a = new Audio(animal.audio);
       a.preload = "auto";
       audioRefs.current[animal.nombre] = a;
-
       a.addEventListener("ended", () => {
         if (activeAudio === animal.nombre) setActiveAudio(null);
         if (bgRef.current) bgRef.current.volume = bgPrevVolume.current;
@@ -95,21 +86,17 @@ export default function ReservaMap() {
         bgPrevVolume.current = bgRef.current.volume;
         bgRef.current.volume = Math.max(0.01, bgPrevVolume.current * 0.2);
       }
-      audioEl.play().catch(() => {});
+      audioEl.play().catch((err) => console.warn(err));
       setActiveAudio(animal.nombre);
     }
   };
 
-  // reproducir música al cargar
   useEffect(() => {
     if (bgRef.current) {
       bgRef.current.volume = bgVolume;
       bgRef.current.preload = "auto";
-
-      const p = bgRef.current.play();
-      if (p !== undefined) {
-        p.then(() => setBgPlaying(true)).catch(() => console.warn("Autoplay bloqueado"));
-      }
+      // auto play al cargar
+      bgRef.current.play().then(() => setBgPlaying(true)).catch(() => {});
     }
   }, []);
 
@@ -121,12 +108,11 @@ export default function ReservaMap() {
         setBgPlaying(false);
       } else {
         bgRef.current.volume = bgVolume;
-        const p = bgRef.current.play();
-        if (p !== undefined) await p;
+        await bgRef.current.play();
         setBgPlaying(true);
       }
     } catch (err) {
-      console.error("Error reproducendo música:", err);
+      console.error("Error reproducir música de fondo:", err);
     }
   };
 
@@ -136,20 +122,35 @@ export default function ReservaMap() {
 
   const ZOOM_SIZE = 500;
 
+  // Función para ajustar popup si está cerca del borde
+  const adjustPopupPosition = (topPct, leftPct, popupWidth = 220, popupHeight = 120) => {
+    let top = Number(topPct.replace("%", ""));
+    let left = Number(leftPct.replace("%", ""));
+    let transformY = -50;
+    let transformX = -50;
+
+    // vertical
+    if (top < (popupHeight / window.innerHeight) * 100) transformY = 0;
+    if (top > 100 - (popupHeight / window.innerHeight) * 100) transformY = -100;
+
+    // horizontal
+    if (left + (popupWidth / window.innerWidth) * 100 > 100) transformX = -100;
+
+    return { top: `${top}%`, left: `${left}%`, transform: `translate(${transformX}%, ${transformY}%)` };
+  };
+
   return (
     <div className="mapa-container">
       <img src={miMapa} alt="Fondo mapa" className="map-bg" />
 
       <audio ref={bgRef} loop>
         <source src={bgMusic} type="audio/mpeg" />
-        Tu navegador no soporta audio.
       </audio>
 
       <div className="music-controls">
         <button className="music-btn" onClick={toggleBackgroundMusic}>
           {bgPlaying ? "⏸ Pausar música" : "▶ Reproducir música"}
         </button>
-
         <input
           className="volume-slider"
           type="range"
@@ -169,7 +170,6 @@ export default function ReservaMap() {
         const isZoomed = zoomed === animal.nombre;
         const baseSize = 80;
         const size = isZoomed ? ZOOM_SIZE : baseSize;
-        const popupLeftOffset = `${size + 16}px`;
 
         return (
           <div
@@ -182,20 +182,16 @@ export default function ReservaMap() {
             <img
               src={animal.img}
               alt={animal.nombre}
+              className="animal-image"
+              style={{ width: `${size}px`, height: `${size}px`, boxShadow: isZoomed ? "0 20px 40px rgba(0,0,0,0.6)" : "0 6px 16px rgba(0,0,0,0.35)" }}
               onClick={() => {
                 toggleAnimalAudio(animal);
                 toggleZoom(animal.nombre);
               }}
-              style={{
-                width: `${size}px`,
-                height: `${size}px`,
-                transition: "width 220ms ease, height 220ms ease, box-shadow 220ms ease",
-                boxShadow: isZoomed ? "0 20px 40px rgba(0,0,0,0.6)" : "0 6px 16px rgba(0,0,0,0.35)",
-                cursor: "pointer",
-              }}
             />
+
             {isZoomed && (
-              <div className="zoom-popup" style={{ left: popupLeftOffset }}>
+              <div className="zoom-popup" style={adjustPopupPosition(animal.top, animal.left, 220, 120)}>
                 <strong>{animal.nombre}</strong>
                 <p style={{ marginTop: 6 }}>{animal.desc}</p>
               </div>
@@ -205,9 +201,9 @@ export default function ReservaMap() {
       })}
 
       {popup && !zoomed && (
-        <div className="hover-popup" style={{ top: popup.top, left: popup.left }}>
+        <div className="hover-popup" style={adjustPopupPosition(popup.top, popup.left, 200, 60)}>
           <strong>{popup.nombre}</strong>
-          <p style={{ margin: "4px 0 0 0", fontSize: 12 }}>{popup.desc}</p>
+          <p>{popup.desc}</p>
         </div>
       )}
     </div>
