@@ -3,20 +3,20 @@ import "../estilos/ReservaMap.css";
 
 import miMapa from "../imagenes/miMapa.gif";
 
-// Imágenes animales
-import pinguino from "../imagenes/pinguino_de_humboldt.png";
-import delfin from "../imagenes/delfin_nariz_de_botella.png";
-import lobo from "../imagenes/lobo_marino.png";
-import chungungo from "../imagenes/chungungo.png";
-import cormoranLile from "../imagenes/cormoran_lile.png";
-import cormoranPiquero from "../imagenes/cormoran_piquero.png";
-import cormoranYeco from "../imagenes/cormoran_yeco.png";
-import cormoranGuanay from "../imagenes/cormoran_guanay.png";
-import yunco from "../imagenes/yunco.png";
-import ballenaJorobada from "../imagenes/ballena_jorobada.png";
-import ballenaFinn from "../imagenes/ballena_finn.png";
-import ballenaAzul from "../imagenes/ballena_azul.png";
-import orca from "../imagenes/orca.png";
+// Imágenes en formato .webp
+import pinguino from "../imagenes/pinguino_de_humboldt.webp";
+import delfin from "../imagenes/delfin_nariz_de_botella.webp";
+import lobo from "../imagenes/lobo_marino.webp";
+import chungungo from "../imagenes/chungungo.webp";
+import cormoranLile from "../imagenes/cormoran_lile.webp";
+import cormoranPiquero from "../imagenes/cormoran_piquero.webp";
+import cormoranYeco from "../imagenes/cormoran_yeco.webp";
+import cormoranGuanay from "../imagenes/cormoran_guanay.webp";
+import yunco from "../imagenes/yunco.webp";
+import ballenaJorobada from "../imagenes/ballena_jorobada.webp";
+import ballenaFinn from "../imagenes/ballena_finn.webp";
+import ballenaAzul from "../imagenes/ballena_azul.webp";
+import orca from "../imagenes/orca.webp";
 
 // Audios animales
 import audioPinguino from "../audio/pinguino.mp3";
@@ -55,18 +55,22 @@ const animales = [
 export default function ReservaMap() {
   const audioRefs = useRef({});
   const [activeAudio, setActiveAudio] = useState(null);
+
   const bgRef = useRef(null);
   const [bgPlaying, setBgPlaying] = useState(false);
   const [bgVolume, setBgVolume] = useState(0.25);
   const bgPrevVolume = useRef(bgVolume);
+
   const [popup, setPopup] = useState(null);
   const [zoomed, setZoomed] = useState(null);
 
+  // inicializar audio de animal
   const initAudio = (animal) => {
     if (!audioRefs.current[animal.nombre]) {
       const a = new Audio(animal.audio);
       a.preload = "auto";
       audioRefs.current[animal.nombre] = a;
+
       a.addEventListener("ended", () => {
         if (activeAudio === animal.nombre) setActiveAudio(null);
         if (bgRef.current) bgRef.current.volume = bgPrevVolume.current;
@@ -91,17 +95,23 @@ export default function ReservaMap() {
         bgPrevVolume.current = bgRef.current.volume;
         bgRef.current.volume = Math.max(0.01, bgPrevVolume.current * 0.2);
       }
-      audioEl.play().catch((err) => console.warn("Error audio animal:", err));
+      audioEl.play().catch(() => {});
       setActiveAudio(animal.nombre);
     }
   };
 
+  // reproducir música al cargar
   useEffect(() => {
     if (bgRef.current) {
       bgRef.current.volume = bgVolume;
       bgRef.current.preload = "auto";
+
+      const p = bgRef.current.play();
+      if (p !== undefined) {
+        p.then(() => setBgPlaying(true)).catch(() => console.warn("Autoplay bloqueado"));
+      }
     }
-  }, [bgVolume]);
+  }, []);
 
   const toggleBackgroundMusic = async () => {
     if (!bgRef.current) return;
@@ -110,13 +120,13 @@ export default function ReservaMap() {
         bgRef.current.pause();
         setBgPlaying(false);
       } else {
+        bgRef.current.volume = bgVolume;
         const p = bgRef.current.play();
         if (p !== undefined) await p;
         setBgPlaying(true);
       }
     } catch (err) {
-      console.error("Error reproducir música de fondo:", err);
-      alert("No se pudo reproducir la música de fondo. Haz click en la página y vuelve a intentar.");
+      console.error("Error reproducendo música:", err);
     }
   };
 
@@ -124,12 +134,11 @@ export default function ReservaMap() {
     setZoomed((prev) => (prev === nombre ? null : nombre));
   };
 
-  const baseSize = 80;
-  const ZOOM_SIZE = window.innerWidth < 768 ? 200 : 500;
+  const ZOOM_SIZE = 500;
 
   return (
     <div className="mapa-container">
-      <img src={miMapa} alt="Mapa" className="map-bg" />
+      <img src={miMapa} alt="Fondo mapa" className="map-bg" />
 
       <audio ref={bgRef} loop>
         <source src={bgMusic} type="audio/mpeg" />
@@ -140,6 +149,7 @@ export default function ReservaMap() {
         <button className="music-btn" onClick={toggleBackgroundMusic}>
           {bgPlaying ? "⏸ Pausar música" : "▶ Reproducir música"}
         </button>
+
         <input
           className="volume-slider"
           type="range"
@@ -157,6 +167,7 @@ export default function ReservaMap() {
 
       {animales.map((animal, idx) => {
         const isZoomed = zoomed === animal.nombre;
+        const baseSize = 80;
         const size = isZoomed ? ZOOM_SIZE : baseSize;
         const popupLeftOffset = `${size + 16}px`;
 
@@ -164,18 +175,13 @@ export default function ReservaMap() {
           <div
             key={idx}
             className="animal-wrapper"
-            style={{
-              top: animal.top,
-              left: animal.left,
-              zIndex: isZoomed ? 2000 : 10,
-            }}
+            style={{ top: animal.top, left: animal.left, zIndex: isZoomed ? 2000 : 10 }}
             onMouseEnter={() => setPopup(animal)}
             onMouseLeave={() => setPopup(null)}
           >
             <img
               src={animal.img}
               alt={animal.nombre}
-              className="animal-image"
               onClick={() => {
                 toggleAnimalAudio(animal);
                 toggleZoom(animal.nombre);
@@ -185,6 +191,7 @@ export default function ReservaMap() {
                 height: `${size}px`,
                 transition: "width 220ms ease, height 220ms ease, box-shadow 220ms ease",
                 boxShadow: isZoomed ? "0 20px 40px rgba(0,0,0,0.6)" : "0 6px 16px rgba(0,0,0,0.35)",
+                cursor: "pointer",
               }}
             />
             {isZoomed && (
@@ -198,13 +205,7 @@ export default function ReservaMap() {
       })}
 
       {popup && !zoomed && (
-        <div
-          className="hover-popup"
-          style={{
-            top: popup.top,
-            left: popup.left,
-          }}
-        >
+        <div className="hover-popup" style={{ top: popup.top, left: popup.left }}>
           <strong>{popup.nombre}</strong>
           <p style={{ margin: "4px 0 0 0", fontSize: 12 }}>{popup.desc}</p>
         </div>
