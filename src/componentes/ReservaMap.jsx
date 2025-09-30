@@ -3,7 +3,7 @@ import "../estilos/ReservaMap.css";
 
 import miMapa from "../imagenes/miMapa.gif";
 
-// Imágenes
+// Imágenes animales
 import pinguino from "../imagenes/pinguino_de_humboldt.png";
 import delfin from "../imagenes/delfin_nariz_de_botella.png";
 import lobo from "../imagenes/lobo_marino.png";
@@ -33,7 +33,7 @@ import audioBallenaFinn from "../audio/ballena_finn.mp3";
 import audioBallenaAzul from "../audio/ballena_azul.mp3";
 import audioOrca from "../audio/orca.mp3";
 
-// Música de fondo (está en src/audio)
+// Música de fondo
 import bgMusic from "../audio/musica-fondo.mp3";
 
 const animales = [
@@ -53,34 +53,23 @@ const animales = [
 ];
 
 export default function ReservaMap() {
-  // audio por animal
   const audioRefs = useRef({});
   const [activeAudio, setActiveAudio] = useState(null);
-
-  // fondo musical
   const bgRef = useRef(null);
   const [bgPlaying, setBgPlaying] = useState(false);
-  const [bgVolume, setBgVolume] = useState(0.25); // volumen inicial
-  const bgPrevVolume = useRef(bgVolume); // para restaurar después de ducking
-
-  // popups y zoom
+  const [bgVolume, setBgVolume] = useState(0.25);
+  const bgPrevVolume = useRef(bgVolume);
   const [popup, setPopup] = useState(null);
   const [zoomed, setZoomed] = useState(null);
 
-  // inicializar audio de animal y guardarlo en ref
   const initAudio = (animal) => {
     if (!audioRefs.current[animal.nombre]) {
       const a = new Audio(animal.audio);
       a.preload = "auto";
       audioRefs.current[animal.nombre] = a;
-
-      // cuando termina, limpiar estado activeAudio y restaurar volumen de fondo
       a.addEventListener("ended", () => {
         if (activeAudio === animal.nombre) setActiveAudio(null);
-        // restaurar volumen fondo si estaba bajado
-        if (bgRef.current) {
-          bgRef.current.volume = bgPrevVolume.current;
-        }
+        if (bgRef.current) bgRef.current.volume = bgPrevVolume.current;
       });
     }
     return audioRefs.current[animal.nombre];
@@ -88,32 +77,25 @@ export default function ReservaMap() {
 
   const toggleAnimalAudio = (animal) => {
     const audioEl = initAudio(animal);
-
     if (activeAudio === animal.nombre) {
       audioEl.pause();
       audioEl.currentTime = 0;
       setActiveAudio(null);
-      // restaurar volumen fondo
       if (bgRef.current) bgRef.current.volume = bgPrevVolume.current;
     } else {
-      // pausar anterior
       if (activeAudio && audioRefs.current[activeAudio]) {
         audioRefs.current[activeAudio].pause();
         audioRefs.current[activeAudio].currentTime = 0;
       }
-      // ducking: bajar volumen fondo al 20% del actual (opcional)
       if (bgRef.current && bgPlaying) {
         bgPrevVolume.current = bgRef.current.volume;
         bgRef.current.volume = Math.max(0.01, bgPrevVolume.current * 0.2);
       }
-      audioEl.play().catch((err) => {
-        console.warn("No se pudo reproducir el audio del animal:", err);
-      });
+      audioEl.play().catch((err) => console.warn("Error audio animal:", err));
       setActiveAudio(animal.nombre);
     }
   };
 
-  // controles música de fondo
   useEffect(() => {
     if (bgRef.current) {
       bgRef.current.volume = bgVolume;
@@ -128,42 +110,36 @@ export default function ReservaMap() {
         bgRef.current.pause();
         setBgPlaying(false);
       } else {
-        bgRef.current.volume = bgVolume;
         const p = bgRef.current.play();
         if (p !== undefined) await p;
         setBgPlaying(true);
       }
     } catch (err) {
-      console.error("Error reproduciendo música de fondo:", err);
+      console.error("Error reproducir música de fondo:", err);
       alert("No se pudo reproducir la música de fondo. Haz click en la página y vuelve a intentar.");
     }
   };
 
-  // toggle zoom imagen
   const toggleZoom = (nombre) => {
     setZoomed((prev) => (prev === nombre ? null : nombre));
   };
 
-  // tamaño zoom (colocaste 300; cambia a 500 si quieres)
-  const ZOOM_SIZE = 300; // cambia a 500 si prefieres 500px
+  const baseSize = 80;
+  const ZOOM_SIZE = window.innerWidth < 768 ? 200 : 500;
 
   return (
-    <div className="mapa-container" style={{ position: "relative", width: "100%", height: "100vh" }}>
-      {/* fondo */}
-      <img src={miMapa} alt="Fondo mapa" className="map-bg" />
+    <div className="mapa-container">
+      <img src={miMapa} alt="Mapa" className="map-bg" />
 
-      {/* audio elemento (importado desde src/audio) */}
       <audio ref={bgRef} loop>
         <source src={bgMusic} type="audio/mpeg" />
         Tu navegador no soporta audio.
       </audio>
 
-      {/* controles de música (botón + slider) */}
-      <div className="music-controls" style={{ position: "absolute", top: 12, right: 12, zIndex: 3000 }}>
+      <div className="music-controls">
         <button className="music-btn" onClick={toggleBackgroundMusic}>
           {bgPlaying ? "⏸ Pausar música" : "▶ Reproducir música"}
         </button>
-
         <input
           className="volume-slider"
           type="range"
@@ -179,22 +155,18 @@ export default function ReservaMap() {
         />
       </div>
 
-      {/* animales */}
       {animales.map((animal, idx) => {
         const isZoomed = zoomed === animal.nombre;
-        const baseSize = 80; // tamaño normal en px
         const size = isZoomed ? ZOOM_SIZE : baseSize;
-        const popupLeftOffset = `${size + 16}px`; // popup aparece a la derecha del ancho de la imagen
+        const popupLeftOffset = `${size + 16}px`;
 
         return (
           <div
             key={idx}
             className="animal-wrapper"
             style={{
-              position: "absolute",
               top: animal.top,
               left: animal.left,
-              transform: "translate(-50%, -50%)",
               zIndex: isZoomed ? 2000 : 10,
             }}
             onMouseEnter={() => setPopup(animal)}
@@ -213,20 +185,10 @@ export default function ReservaMap() {
                 height: `${size}px`,
                 transition: "width 220ms ease, height 220ms ease, box-shadow 220ms ease",
                 boxShadow: isZoomed ? "0 20px 40px rgba(0,0,0,0.6)" : "0 6px 16px rgba(0,0,0,0.35)",
-                cursor: "pointer",
               }}
             />
-
             {isZoomed && (
-              <div
-                className="zoom-popup"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: popupLeftOffset,
-                  zIndex: 2100,
-                }}
-              >
+              <div className="zoom-popup" style={{ left: popupLeftOffset }}>
                 <strong>{animal.nombre}</strong>
                 <p style={{ marginTop: 6 }}>{animal.desc}</p>
               </div>
@@ -235,16 +197,12 @@ export default function ReservaMap() {
         );
       })}
 
-      {/* hover popup pequeño */}
       {popup && !zoomed && (
         <div
           className="hover-popup"
           style={{
-            position: "absolute",
             top: popup.top,
             left: popup.left,
-            transform: "translate(-50%, -120%)",
-            zIndex: 2500,
           }}
         >
           <strong>{popup.nombre}</strong>
